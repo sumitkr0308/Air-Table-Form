@@ -19,7 +19,7 @@ export default function SelectTable() {
       setTables(res.data?.tables || []); 
     } catch (err) {
       console.error(err);
-      setTables([]); // fallback
+      setTables([]); 
     }
   };
 
