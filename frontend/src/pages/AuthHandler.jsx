@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 
 export default function AuthHandler() {
   const navigate = useNavigate();
-  console.log("📍 AuthHandler Component Mounted");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -12,21 +11,17 @@ export default function AuthHandler() {
     console.log("🔍 Received Token:", token);
 
     if (token) {
-      // Save token
+
       localStorage.setItem("token", token);
 
-      console.log("Token saved. Cleaning URL...");
+      console.log("💾 Token saved, redirecting...");
 
-     
-      window.history.replaceState({}, "", "/");
-
-      // Redirect to next step
-      navigate("/select-table");
+      navigate("/select-table", { replace: true });
     } else {
-      console.log("No token found — sending user back to login page");
-      navigate("/");
+      console.log("No token found — redirecting to login.");
+      navigate("/", { replace: true });
     }
   }, [navigate]);
 
-  return <p className="p-6">Authenticatin.....</p>;
+  return <p className="p-6">Authenticating...</p>;
 }
