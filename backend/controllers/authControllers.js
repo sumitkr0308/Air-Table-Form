@@ -1,15 +1,11 @@
 const Users = require("../models/users");
 const axios = require("axios");
 const jwt = require("jsonwebtoken");
-const crypto = require("crypto");
 const { generatePKCE } = require("../utils/pkce");
-
-
 
 const getLogin = (req, res) => {
   const { codeVerifier, codeChallenge } = generatePKCE();
 
-  
   const stateJWT = jwt.sign(
     { codeVerifier, timestamp: Date.now() },
     process.env.JWT_SECRET,
@@ -30,7 +26,6 @@ const getLogin = (req, res) => {
 };
 
 
-
 const getCallback = async (req, res) => {
   const { code, state } = req.query;
 
@@ -39,15 +34,12 @@ const getCallback = async (req, res) => {
   let decoded;
   try {
     decoded = jwt.verify(state, process.env.JWT_SECRET);
-  } catch (err) {
+  } catch {
     return res.status(400).send("Invalid or expired state");
   }
 
   const { codeVerifier } = decoded;
-
-  if (!codeVerifier) {
-    return res.status(400).send("Missing PKCE verifier");
-  }
+  if (!codeVerifier) return res.status(400).send("Missing PKCE verifier");
 
   try {
 
@@ -65,19 +57,32 @@ const getCallback = async (req, res) => {
 
     const { access_token, refresh_token, expires_in } = tokenRes.data;
 
-    // Save user
-    let user = await Users.findOne({ refreshToken: refresh_token });
+
+    const whoamiRes = await axios.get("https://api.airtable.com/v0/meta/whoami", {
+      headers: { Authorization: `Bearer ${access_token}` },
+    });
+
+    const airtableUserId = whoamiRes.data.id;
+    const email = whoamiRes.data.email;
+
+    let user = await Users.findOne({ airtableId: airtableUserId });
 
     if (!user) {
       user = await Users.create({
-        airtableId: crypto.randomUUID(),
+        airtableId: airtableUserId,
+        email,
         accessToken: access_token,
         refreshToken: refresh_token,
         expiresAt: Date.now() + expires_in * 1000,
       });
+    } else {
+    
+      user.accessToken = access_token;
+      user.refreshToken = refresh_token;
+      user.expiresAt = Date.now() + expires_in * 1000;
+      await user.save();
     }
 
-    // Create app session token
     const appToken = jwt.sign(
       { userId: user._id },
       process.env.JWT_SECRET,
@@ -92,7 +97,38 @@ const getCallback = async (req, res) => {
   }
 };
 
+
+
+
+const refreshAccessToken = async (user) => {
+  try {
+    if (!user.refreshToken) return null;
+
+    const response = await axios.post(
+      "https://airtable.com/oauth2/v1/token",
+      new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: user.refreshToken,
+        client_id: process.env.AIRTABLE_CLIENT_ID,
+      }),
+      { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+    );
+
+    user.accessToken = response.data.access_token;
+    user.refreshToken = response.data.refresh_token || user.refreshToken;
+    user.expiresAt = Date.now() + response.data.expires_in * 1000;
+
+    await user.save();
+    return user.accessToken;
+
+  } catch (err) {
+    console.error("Refresh token failed:", err.response?.data || err);
+    return null;
+  }
+};
+
 module.exports = {
   getLogin,
   getCallback,
+  refreshAccessToken,
 };
