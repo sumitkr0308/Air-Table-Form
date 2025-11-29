@@ -9,7 +9,7 @@ export default function Login() {
     if (token) navigate("/select-table"); 
   }, []);
 
-  const loginUrl = `http://localhost:4000/auth/login`;
+  const loginUrl = `${import.meta.env.VITE_BACKEND_URL}/auth/login`;
 
   return (
     <div className="p-6">

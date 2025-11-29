@@ -15,18 +15,18 @@ export default function AuthHandler() {
       // Save token
       localStorage.setItem("token", token);
 
-      console.log("💾 Token saved. Cleaning URL...");
+      console.log("Token saved. Cleaning URL...");
 
-      // Remove ?token= from URL so reload doesn't retry OAuth
+     
       window.history.replaceState({}, "", "/");
 
       // Redirect to next step
       navigate("/select-table");
     } else {
-      console.log("⚠️ No token found — sending user back to login page");
+      console.log("No token found — sending user back to login page");
       navigate("/");
     }
   }, [navigate]);
 
-  return <p className="p-6">Authenticating...</p>;
+  return <p className="p-6">Authenticatin.....</p>;
 }
